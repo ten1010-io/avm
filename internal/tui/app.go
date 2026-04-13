@@ -48,6 +48,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case vfSetResultMsg:
 		return m.handleVFResult(msg)
+
+	case grubUpdateMsg:
+		return m.handleGrubResult(msg)
 	}
 
 	if m.activeView == detailView {
@@ -79,6 +82,27 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Confirm dialog active
+	if m.dashboard.confirmIOMMU {
+		switch msg.String() {
+		case "y":
+			m.dashboard.confirmIOMMU = false
+			if m.demoMode {
+				m.dashboard.grubMessage = "✓ GRUB updated (demo). Reboot to apply."
+				m.dashboard.grubIsError = false
+				return m, nil
+			}
+			return m, func() tea.Msg {
+				result := sriov.EnableIOMMUKernelParam()
+				return grubUpdateMsg{result: result}
+			}
+		case "n", "esc":
+			m.dashboard.confirmIOMMU = false
+			return m, nil
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -104,10 +128,35 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case "e":
+		if m.iommuCanEnable() {
+			m.dashboard.confirmIOMMU = true
+			m.dashboard.grubMessage = ""
+		}
+		return m, nil
+
 	case "r":
 		return m, m.scanDevices()
 	}
 
+	return m, nil
+}
+
+func (m Model) iommuCanEnable() bool {
+	return m.dashboard.iommu.State == sriov.IOMMUPassthrough
+}
+
+func (m Model) handleGrubResult(msg grubUpdateMsg) (tea.Model, tea.Cmd) {
+	if msg.result.Success {
+		m.dashboard.grubMessage = fmt.Sprintf(
+			"✓ GRUB updated. Backup: %s. Reboot to apply intel_iommu=on",
+			msg.result.BackupPath,
+		)
+		m.dashboard.grubIsError = false
+	} else {
+		m.dashboard.grubMessage = fmt.Sprintf("Error: %s", msg.result.ErrorMsg)
+		m.dashboard.grubIsError = true
+	}
 	return m, nil
 }
 

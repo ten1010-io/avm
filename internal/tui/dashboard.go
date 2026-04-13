@@ -8,10 +8,13 @@ import (
 )
 
 type dashboardModel struct {
-	iommu   sriov.IOMMUStatus
-	devices []sriov.Device
-	cursor  int
-	err     error
+	iommu        sriov.IOMMUStatus
+	devices      []sriov.Device
+	cursor       int
+	err          error
+	confirmIOMMU bool   // "e" 누르면 true → "y"로 실행
+	grubMessage  string // GRUB 수정 결과 메시지
+	grubIsError  bool
 }
 
 func newDashboardModel() dashboardModel {
@@ -27,6 +30,31 @@ func (m dashboardModel) View() string {
 	b.WriteString(m.renderIOMMUStatus())
 	b.WriteString("\n")
 
+	if m.grubMessage != "" {
+		if m.grubIsError {
+			b.WriteString(errorStyle.Render("  "+m.grubMessage) + "\n\n")
+		} else {
+			b.WriteString(successStyle.Render("  "+m.grubMessage) + "\n\n")
+		}
+	}
+
+	if m.confirmIOMMU {
+		b.WriteString(warningStyle.Render("  ⚠ This will modify /etc/default/grub and regenerate grub config."))
+		b.WriteString("\n")
+		b.WriteString(warningStyle.Render("    A backup will be saved. Reboot required after."))
+		b.WriteString("\n\n")
+
+		currentGrub := sriov.ReadCurrentGrubCmdline()
+		if currentGrub != "" {
+			b.WriteString(dimStyle.Render("  Current: "+currentGrub) + "\n")
+			b.WriteString(dimStyle.Render("  Will add: intel_iommu=on iommu=pt") + "\n\n")
+		}
+
+		b.WriteString(headerStyle.Render("  Proceed? [y] Yes  [n] Cancel"))
+		b.WriteString("\n")
+		return boxStyle.Render(b.String())
+	}
+
 	if m.err != nil {
 		b.WriteString(errorStyle.Render(fmt.Sprintf("  Error: %s", m.err.Error())))
 		b.WriteString("\n")
@@ -39,7 +67,11 @@ func (m dashboardModel) View() string {
 		b.WriteString(m.renderDeviceTable())
 	}
 
-	b.WriteString(helpStyle.Render("  [↑/↓] Navigate  [Enter] Detail  [r] Refresh  [q] Quit"))
+	help := "  [↑/↓] Navigate  [Enter] Detail  [r] Refresh  [q] Quit"
+	if m.iommu.State == sriov.IOMMUPassthrough {
+		help = "  [↑/↓] Navigate  [Enter] Detail  [e] Enable IOMMU  [r] Refresh  [q] Quit"
+	}
+	b.WriteString(helpStyle.Render(help))
 
 	return boxStyle.Render(b.String())
 }
@@ -66,10 +98,6 @@ func (m dashboardModel) renderIOMMUStatus() string {
 			b.WriteString(dimStyle.Render(fmt.Sprintf("    dmesg: %s", m.iommu.DmesgInfo)))
 			b.WriteString("\n")
 		}
-		b.WriteString(warningStyle.Render("    ⚠ For SR-IOV with VFIO, add to kernel params:"))
-		b.WriteString("\n")
-		b.WriteString(dimStyle.Render("      intel_iommu=on iommu=pt"))
-		b.WriteString("\n")
 
 	default:
 		b.WriteString(fmt.Sprintf("  %s\n", disabledStyle.Render("IOMMU: ✗ Not Supported")))

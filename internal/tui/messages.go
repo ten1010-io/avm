@@ -25,3 +25,7 @@ type navigateMsg struct {
 	view        viewType
 	deviceIndex int
 }
+
+type grubUpdateMsg struct {
+	result sriov.GrubUpdateResult
+}
