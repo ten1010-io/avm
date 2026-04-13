@@ -7,6 +7,7 @@ type viewType int
 const (
 	dashboardView viewType = iota
 	detailView
+	pkeyView
 )
 
 type devicesScannedMsg struct {
@@ -28,4 +29,15 @@ type navigateMsg struct {
 
 type grubUpdateMsg struct {
 	result sriov.GrubUpdateResult
+}
+
+type pkeyAddResultMsg struct {
+	name string
+	pkey string
+	err  error
+}
+
+type pkeyDeleteResultMsg struct {
+	pkey string
+	err  error
 }

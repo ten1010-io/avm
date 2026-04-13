@@ -111,3 +111,17 @@ func DemoVFs(pfBDF string) []VFInfo {
 	}
 	return nil
 }
+
+func DemoSubnetManager() (string, bool) {
+	return "OpenSM", true
+}
+
+func DemoPKeyPartitions() []PKeyPartition {
+	return []PKeyPartition{
+		{PKey: "0x7FFF", Name: "default", Members: "ALL=full", Active: true},
+		{PKey: "0x8001", Name: "team-a-ml", Members: "ALL=full", Active: true},
+		{PKey: "0x8002", Name: "team-b-ml", Members: "ALL=full", Active: true},
+		{PKey: "0x8003", Name: "monitoring", Members: "ALL=limited", Active: true},
+		{PKey: "0x8010", Name: "dpdk-network", Members: "ALL=full", Active: false},
+	}
+}

@@ -1,4 +1,4 @@
-# AVM (Advanced VF Manager) - TUI Application Plan
+# AVM (Advanced Virtualization Manager) - TUI Application Plan
 
 ## Context
 SR-IOV VF 관리를 위한 Go + bubbletea 기반 TUI 애플리케이션. 현재 장비의 IOMMU 지원 여부, SR-IOV 디바이스 목록, Max VF 확인, VF 개수 설정 등을 터미널에서 직관적으로 수행할 수 있는 도구.
@@ -31,7 +31,7 @@ avm/
 
 ### 1. Dashboard (메인 화면)
 ```
-╭─ AVM - Advanced VF Manager ─────────────────────╮
+╭─ AVM - Advanced Virtualization Manager ─────────────────────╮
 │                                                   │
 │  IOMMU Status: ✓ Enabled (intel_iommu=on)        │
 │                                                   │

@@ -26,7 +26,7 @@ func newDashboardModel() dashboardModel {
 func (m dashboardModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("AVM - Advanced VF Manager"))
+	b.WriteString(titleStyle.Render("AVM - Advanced Virtualization Manager"))
 	if !m.lastRefresh.IsZero() {
 		b.WriteString("  " + dimStyle.Render(fmt.Sprintf("Last scanned: %s", m.lastRefresh.Format("15:04:05"))))
 	}
@@ -72,9 +72,9 @@ func (m dashboardModel) View() string {
 		b.WriteString(m.renderDeviceTable())
 	}
 
-	help := "  [↑/↓] Navigate  [Enter] Detail  [r] Refresh  [q] Quit"
+	help := "  [↑/↓] Navigate  [Enter] Detail  [p] P-Keys  [r] Refresh  [q] Quit"
 	if m.iommu.State == sriov.IOMMUPassthrough {
-		help = "  [↑/↓] Navigate  [Enter] Detail  [e] Enable IOMMU  [r] Refresh  [q] Quit"
+		help = "  [↑/↓] Navigate  [Enter] Detail  [p] P-Keys  [e] Enable IOMMU  [r] Refresh  [q] Quit"
 	}
 	b.WriteString(helpStyle.Render(help))
 
