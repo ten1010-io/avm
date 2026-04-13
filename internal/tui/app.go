@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -44,6 +45,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.dashboard.iommu = msg.iommu
 		m.dashboard.devices = msg.devices
 		m.dashboard.err = msg.err
+		m.dashboard.lastRefresh = time.Now()
 		return m, nil
 
 	case vfSetResultMsg:

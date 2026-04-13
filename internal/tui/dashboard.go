@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/joonseolee/avm/internal/sriov"
 )
@@ -15,6 +16,7 @@ type dashboardModel struct {
 	confirmIOMMU bool   // "e" 누르면 true → "y"로 실행
 	grubMessage  string // GRUB 수정 결과 메시지
 	grubIsError  bool
+	lastRefresh  time.Time
 }
 
 func newDashboardModel() dashboardModel {
@@ -25,6 +27,9 @@ func (m dashboardModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("AVM - Advanced VF Manager"))
+	if !m.lastRefresh.IsZero() {
+		b.WriteString("  " + dimStyle.Render(fmt.Sprintf("Last scanned: %s", m.lastRefresh.Format("15:04:05"))))
+	}
 	b.WriteString("\n\n")
 
 	b.WriteString(m.renderIOMMUStatus())
