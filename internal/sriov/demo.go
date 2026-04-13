@@ -2,7 +2,7 @@ package sriov
 
 func DemoIOMMUStatus() IOMMUStatus {
 	return IOMMUStatus{
-		Enabled:    true,
+		State:      IOMMUEnabled,
 		Method:     "intel_iommu=on",
 		HasGroups:  true,
 		GroupCount: 24,

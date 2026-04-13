@@ -2,14 +2,24 @@ package sriov
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 )
 
+type IOMMUState int
+
+const (
+	IOMMUNotSupported IOMMUState = iota
+	IOMMUPassthrough
+	IOMMUEnabled
+)
+
 type IOMMUStatus struct {
-	Enabled    bool
-	Method     string // "intel_iommu", "amd_iommu", "iommu=pt", etc.
-	HasGroups  bool
-	GroupCount int
+	State       IOMMUState
+	Method      string // "intel_iommu=on", "iommu=pt", "Passthrough", etc.
+	HasGroups   bool
+	GroupCount  int
+	DmesgInfo   string // raw dmesg line for display
 }
 
 func DetectIOMMU() IOMMUStatus {
@@ -17,7 +27,16 @@ func DetectIOMMU() IOMMUStatus {
 
 	status.Method = detectKernelParam()
 	status.HasGroups, status.GroupCount = detectIOMMUGroups()
-	status.Enabled = status.HasGroups && status.GroupCount > 0
+	status.DmesgInfo = detectDmesgIOMMU()
+
+	switch {
+	case status.HasGroups && status.GroupCount > 0:
+		status.State = IOMMUEnabled
+	case status.DmesgInfo != "":
+		status.State = IOMMUPassthrough
+	default:
+		status.State = IOMMUNotSupported
+	}
 
 	return status
 }
@@ -54,4 +73,21 @@ func detectIOMMUGroups() (bool, int) {
 	}
 
 	return count > 0, count
+}
+
+func detectDmesgIOMMU() string {
+	out, err := exec.Command("dmesg").Output()
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "iommu") {
+			return strings.TrimSpace(line)
+		}
+	}
+
+	return ""
 }

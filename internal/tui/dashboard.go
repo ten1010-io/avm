@@ -45,25 +45,42 @@ func (m dashboardModel) View() string {
 }
 
 func (m dashboardModel) renderIOMMUStatus() string {
-	if m.iommu.Enabled {
+	var b strings.Builder
+
+	switch m.iommu.State {
+	case sriov.IOMMUEnabled:
 		method := m.iommu.Method
 		if method == "" {
 			method = "detected"
 		}
-		return fmt.Sprintf("  %s  %s\n",
+		b.WriteString(fmt.Sprintf("  %s  %s\n",
 			enabledStyle.Render("IOMMU: ✓ Enabled"),
 			dimStyle.Render(fmt.Sprintf("(%s, %d groups)", method, m.iommu.GroupCount)),
-		)
+		))
+
+	case sriov.IOMMUPassthrough:
+		b.WriteString(fmt.Sprintf("  %s\n", warningStyle.Render("IOMMU: ⚡ Passthrough Mode")))
+		b.WriteString(dimStyle.Render("    HW supported but running in passthrough mode"))
+		b.WriteString("\n")
+		if m.iommu.DmesgInfo != "" {
+			b.WriteString(dimStyle.Render(fmt.Sprintf("    dmesg: %s", m.iommu.DmesgInfo)))
+			b.WriteString("\n")
+		}
+		b.WriteString(warningStyle.Render("    ⚠ For SR-IOV with VFIO, add to kernel params:"))
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("      intel_iommu=on iommu=pt"))
+		b.WriteString("\n")
+
+	default:
+		b.WriteString(fmt.Sprintf("  %s\n", disabledStyle.Render("IOMMU: ✗ Not Supported")))
+		b.WriteString(warningStyle.Render("  ⚠ SR-IOV requires IOMMU. Enable in BIOS:"))
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("    Intel: VT-d  /  AMD: AMD-Vi"))
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("    Then add intel_iommu=on to kernel params"))
+		b.WriteString("\n")
 	}
 
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %s\n", disabledStyle.Render("IOMMU: ✗ Not Enabled")))
-	b.WriteString(warningStyle.Render("  ⚠ SR-IOV requires IOMMU. Enable in BIOS:"))
-	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("    Intel: VT-d  /  AMD: AMD-Vi"))
-	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("    Then add intel_iommu=on to kernel params"))
-	b.WriteString("\n")
 	return b.String()
 }
 
