@@ -9,8 +9,7 @@ import (
 )
 
 type pkeyModel struct {
-	smName     string
-	smActive   bool
+	smInfo     sriov.SubnetManagerInfo
 	confPath   string
 	partitions []sriov.PKeyPartition
 	cursor     int
@@ -52,13 +51,17 @@ func newPKeyModel(demoMode bool) pkeyModel {
 
 func (m *pkeyModel) loadData() {
 	if m.demoMode {
-		m.smName, m.smActive = sriov.DemoSubnetManager()
+		m.smInfo = sriov.SubnetManagerInfo{Name: "OpenSM", Status: sriov.SMActive, OSType: "rhel"}
 		m.partitions = sriov.DemoPKeyPartitions()
 		m.confPath = "/etc/opensm/partitions.conf"
 		return
 	}
 
-	m.smName, m.smActive = sriov.DetectSubnetManager()
+	m.smInfo = sriov.DetectSubnetManager()
+	if m.smInfo.Status == sriov.SMNotInstalled {
+		return
+	}
+
 	partitions, confPath, err := sriov.ReadPKeyPartitions()
 	m.partitions = partitions
 	m.confPath = confPath
@@ -71,25 +74,14 @@ func (m pkeyModel) View() string {
 	b.WriteString(titleStyle.Render("P-Key Partitions"))
 	b.WriteString("\n\n")
 
-	// Subnet Manager status
-	if m.smActive {
-		b.WriteString(fmt.Sprintf("  %s %s\n",
-			labelStyle.Render("Subnet Mgr:"),
-			enabledStyle.Render(fmt.Sprintf("%s (active)", m.smName)),
-		))
-	} else {
-		b.WriteString(fmt.Sprintf("  %s %s\n",
-			labelStyle.Render("Subnet Mgr:"),
-			disabledStyle.Render(fmt.Sprintf("%s (inactive)", m.smName)),
-		))
+	// SM not installed - show install guide
+	if m.smInfo.Status == sriov.SMNotInstalled && !m.demoMode {
+		b.WriteString(m.renderNotInstalled())
+		b.WriteString(helpStyle.Render("  [Esc] Back"))
+		return boxStyle.Render(b.String())
 	}
 
-	if m.confPath != "" {
-		b.WriteString(fmt.Sprintf("  %s %s\n",
-			labelStyle.Render("Config:"),
-			dimStyle.Render(m.confPath),
-		))
-	}
+	b.WriteString(m.renderSMStatus())
 	b.WriteString("\n")
 
 	if m.err != nil {
@@ -137,9 +129,70 @@ func (m pkeyModel) View() string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(helpStyle.Render("  [a] Add P-Key  [d] Delete  [r] Refresh  [Esc] Back"))
+	help := "  [a] Add P-Key  [d] Delete  [r] Refresh  [Esc] Back"
+	if m.smInfo.Status == sriov.SMInstalled {
+		help = "  [s] Start OpenSM  [r] Refresh  [Esc] Back"
+	}
+	b.WriteString(helpStyle.Render(help))
 
 	return boxStyle.Render(b.String())
+}
+
+func (m pkeyModel) renderNotInstalled() string {
+	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("  %s %s\n",
+		labelStyle.Render("Subnet Mgr:"),
+		disabledStyle.Render("OpenSM (not installed)"),
+	))
+	b.WriteString("\n")
+
+	b.WriteString(warningStyle.Render("  ⚠ OpenSM is required for P-Key management."))
+	b.WriteString("\n\n")
+
+	b.WriteString(headerStyle.Render("  Install OpenSM:"))
+	b.WriteString("\n\n")
+
+	installCmd := sriov.InstallCommand(m.smInfo.OSType)
+	b.WriteString(valueStyle.Render("    " + installCmd))
+	b.WriteString("\n\n")
+
+	b.WriteString(dimStyle.Render("  After installation:"))
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("    sudo systemctl enable opensm"))
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("    sudo systemctl start opensm"))
+	b.WriteString("\n\n")
+
+	return b.String()
+}
+
+func (m pkeyModel) renderSMStatus() string {
+	var b strings.Builder
+
+	switch m.smInfo.Status {
+	case sriov.SMActive:
+		b.WriteString(fmt.Sprintf("  %s %s\n",
+			labelStyle.Render("Subnet Mgr:"),
+			enabledStyle.Render(fmt.Sprintf("%s (active)", m.smInfo.Name)),
+		))
+	case sriov.SMInstalled:
+		b.WriteString(fmt.Sprintf("  %s %s\n",
+			labelStyle.Render("Subnet Mgr:"),
+			warningStyle.Render(fmt.Sprintf("%s (installed but not running)", m.smInfo.Name)),
+		))
+		b.WriteString(dimStyle.Render("    Run: sudo systemctl start opensm"))
+		b.WriteString("\n")
+	}
+
+	if m.confPath != "" {
+		b.WriteString(fmt.Sprintf("  %s %s\n",
+			labelStyle.Render("Config:"),
+			dimStyle.Render(m.confPath),
+		))
+	}
+
+	return b.String()
 }
 
 func (m pkeyModel) renderPartitionTable() string {

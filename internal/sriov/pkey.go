@@ -19,20 +19,77 @@ type PKeyPartition struct {
 
 const defaultPartitionsConf = "/etc/opensm/partitions.conf"
 
-func DetectSubnetManager() (name string, active bool) {
-	// Check if opensm is running
+type SMStatus int
+
+const (
+	SMNotInstalled SMStatus = iota
+	SMInstalled
+	SMActive
+)
+
+type SubnetManagerInfo struct {
+	Name      string
+	Status    SMStatus
+	OSType    string // "rhel", "debian", "unknown"
+}
+
+func DetectSubnetManager() SubnetManagerInfo {
+	info := SubnetManagerInfo{Name: "OpenSM"}
+	info.OSType = detectOSType()
+
+	// Check if opensm binary exists
+	if _, err := exec.LookPath("opensm"); err != nil {
+		info.Status = SMNotInstalled
+		return info
+	}
+
+	info.Status = SMInstalled
+
+	// Check if running
 	out, err := exec.Command("systemctl", "is-active", "opensm").Output()
 	if err == nil && strings.TrimSpace(string(out)) == "active" {
-		return "OpenSM", true
+		info.Status = SMActive
+		return info
 	}
 
-	// Check process list as fallback
 	out, err = exec.Command("pgrep", "-x", "opensm").Output()
 	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
-		return "OpenSM", true
+		info.Status = SMActive
 	}
 
-	return "OpenSM", false
+	return info
+}
+
+func detectOSType() string {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return "unknown"
+	}
+
+	content := strings.ToLower(string(data))
+	switch {
+	case strings.Contains(content, "rhel"),
+		strings.Contains(content, "centos"),
+		strings.Contains(content, "rocky"),
+		strings.Contains(content, "alma"):
+		return "rhel"
+	case strings.Contains(content, "ubuntu"),
+		strings.Contains(content, "debian"):
+		return "debian"
+	}
+
+	return "unknown"
+}
+
+func InstallCommand(osType string) string {
+	switch osType {
+	case "rhel":
+		return "sudo yum install -y opensm"
+	case "debian":
+		return "sudo apt install -y opensm"
+	default:
+		return "# Install opensm via your package manager"
+	}
 }
 
 func FindPartitionsConf() string {

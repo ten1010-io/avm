@@ -112,8 +112,8 @@ func DemoVFs(pfBDF string) []VFInfo {
 	return nil
 }
 
-func DemoSubnetManager() (string, bool) {
-	return "OpenSM", true
+func DemoSubnetManager() SubnetManagerInfo {
+	return SubnetManagerInfo{Name: "OpenSM", Status: SMActive, OSType: "rhel"}
 }
 
 func DemoPKeyPartitions() []PKeyPartition {
